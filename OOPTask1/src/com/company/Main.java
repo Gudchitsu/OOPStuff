@@ -4,11 +4,13 @@ import java.util.Scanner;
 public class Main {
 
     static void convert(int m) {
-        m *= 60; System.out.println("Секунд: "+m);
+        m *= 60;
+        System.out.println("Секунд: "+m);
     }
 
     static void points (int n,int m) {
-        int score; score = n*2 + m*3;
+        int score;
+        score = n*2 + m*3;
         System.out.println("Окончательные очки: " +score);
     }
 
