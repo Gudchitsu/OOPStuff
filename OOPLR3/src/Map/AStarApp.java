@@ -1,3 +1,5 @@
+package Map;
+
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
@@ -220,9 +222,9 @@ public class AStarApp {
         
         // Try to compute a path.  If one can be computed, mark all cells in the
         // path.
-        
+
         Waypoint wp = AStarPathfinder.computePath(map);
-        
+
         while (wp != null)
         {
             Location loc = wp.getLocation();
