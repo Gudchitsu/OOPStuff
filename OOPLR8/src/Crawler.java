@@ -1,47 +1,37 @@
-import java.util.LinkedList;
-
 public class Crawler {
-    public static void showResult(LinkedList<URLDepthPair> resultLink) {
-        for (URLDepthPair c : resultLink)
-            System.out.println("Depth :" + c.getDepth()+"\tLink :"+c.getURL());
+
+    private String URL;
+    private static int maxDepth;
+    public static int threadsWaiting = 0;
+    public static int URLCount = 0;
+    private static final String protocol = "https:";
+
+    public static void main(String args[])
+    {
+        Crawler crawler = new Crawler("https://genius.com/", 2);
+        crawler.run();
+        Runtime.getRuntime().addShutdownHook(new Thread(Crawler::printURLCount));
     }
 
-    public static boolean checkDigit(String line) {
-        boolean isDigit = true;
-        for (int i = 0; i < line.length() && isDigit; i++)
-            isDigit = Character.isDigit(line.charAt(i));
-        return isDigit;
+    public Crawler(String address, int maxDepth)
+    {
+        this.URL = address;
+        this.maxDepth = maxDepth;
     }
 
-    public static void main(String[] args) {
-        args = new String[]{"https://natribu.org/ru", "10", "10"};
-        if (args.length == 3&&checkDigit(args[1])&&checkDigit(args[2])) {
-            String lineUrl = args[0];
-            int numThreads = Integer.parseInt(args[2]);
-            URLPool pool = new URLPool(Integer.parseInt(args[1]));
-            pool.addPair(new URLDepthPair(lineUrl, 0));
-            for (int i = 0; i < numThreads; i++) {
-                CrawlerTask c = new CrawlerTask(pool);
-                Thread t = new Thread(c);
-                t.start();
-            }
-
-            while (pool.getWait() != numThreads) {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    System.out.println("Ignoring  InterruptedException");
-                }
-            }
-            try {
-                showResult(pool.getResult());;
-            } catch (NullPointerException e) {
-                System.out.println("Not Link");
-            }
-            System.exit(0);
-        } else {
-            System.out.println("usage: java Crawler <URL> <maximum_depth> <num_threads> or second/third not digit");
-        }
+    public void run()
+    {
+        CrawlerTask task = new CrawlerTask(new URLPair(URL, 0));
+        task.start();
     }
 
+    public static int getMaxDepth()
+    {
+        return maxDepth;
+    }
+
+    private static void printURLCount()
+    {
+        System.out.println("Final URL count: " + URLCount);
+    }
 }

@@ -1,61 +1,56 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
+import java.util.*;
+import java.net.*;
 
-public class CrawlerTask implements Runnable {
-    URLPool urlPool;
-    public static final String URL_PREFIX = "http:";
+public class CrawlerTask extends Thread
+{
+    private URLPool urlPool;
+    private final String protocol = "https:";
 
-    public CrawlerTask(URLPool pool) {
-        this.urlPool = pool;
+    public CrawlerTask(URLPair urlPair){
+        urlPool = new URLPool();
+        urlPool.addLink(urlPair);
     }
-    public static void request(PrintWriter out,URLDepthPair pair) {
-        out.println("GET " + pair.getPath() + " HTTP/1.1");
-        out.println("Host: " + pair.getHost());
-        out.println("Connection: close");
-        out.println();
-        out.flush();
-    }
-    public static void buildNewUrl(String str,int depth,URLPool pool) {
-        try {
-            int end_of_link = str.indexOf("\"", str.indexOf(URL_PREFIX));
-            if (end_of_link == -1 || (str.indexOf("'", str.indexOf(URL_PREFIX)) != -1 && str.indexOf("'", str.indexOf(URL_PREFIX)) < end_of_link)) {
-                end_of_link = str.indexOf("'", str.indexOf(URL_PREFIX));
-            }
-            if (end_of_link == -1 || (str.indexOf("<", str.indexOf(URL_PREFIX)) - 1 != -1 && str.indexOf("<", str.indexOf(URL_PREFIX)) - 1 < end_of_link)) {
-                end_of_link = str.indexOf("<", str.indexOf(URL_PREFIX)) - 1;
-            }
-            String currentLink = str.substring(str.indexOf(URL_PREFIX), end_of_link);
-            pool.addPair(new URLDepthPair(currentLink, depth + 1));
-        } catch (StringIndexOutOfBoundsException e) {
-        }
-    }
+
     @Override
-    public void run() {
-        while (true) {
-            URLDepthPair currentPair = urlPool.getPair();
-            try {
-                Socket my_socket = new Socket(currentPair.getHost(), 80);
-                my_socket.setSoTimeout(1000);
-                try {
-                    PrintWriter out = new PrintWriter(my_socket.getOutputStream(), true);
-                    BufferedReader in =  new BufferedReader(new InputStreamReader(my_socket.getInputStream()));
-                    request(out,currentPair);
-                    String line;
-                    while ((line = in.readLine()) != null){
-                        if (line.indexOf(currentPair.URL_PREFIX)!=-1) {
-                            buildNewUrl(line,currentPair.getDepth(),urlPool);
-                        }
-                    }
-                    my_socket.close();
-                } catch (SocketTimeoutException e) {
-                    my_socket.close();
-                }
+    public void run()
+    {
+        URLPair urlPair = urlPool.getLink();
+        System.out.println(urlPair);
+        Crawler.URLCount++;
+        if (urlPair.getDepth() >= Crawler.getMaxDepth()) return;
+        search(urlPair);
+    }
+
+    private void search(URLPair current_address){
+        try {
+            URL url = new URL(current_address.getURL());
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            Scanner scanner = new Scanner(connection.getInputStream());
+            while (scanner.findWithinHorizon("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1", 0) != null)
+            {
+                String new_url = scanner.match().group(2);
+                URLPair new_address = newURLPair(new_url, current_address);
+                if (new_address == null) continue;
+                newThread(new_address);
             }
-            catch (IOException e) {}
+        } catch (Exception e) {
+            System.err.println("Exception: " + e.getLocalizedMessage());
         }
+    }
+
+    private URLPair newURLPair(String new_url, URLPair current_address)
+    {
+        if (new_url.startsWith("//"))
+            new_url = protocol + new_url;
+        else if (!new_url.startsWith(protocol)) return null;
+        URLPair new_pair = new URLPair(new_url, current_address.getDepth() + 1);
+        return new_pair;
+    }
+
+    private void newThread(URLPair urlPair)
+    {
+        CrawlerTask task = new CrawlerTask(urlPair);
+        task.start();
     }
 }

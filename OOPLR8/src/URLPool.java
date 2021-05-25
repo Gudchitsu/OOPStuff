@@ -1,48 +1,46 @@
 import java.util.LinkedList;
 
-public class URLPool {
-    LinkedList<URLDepthPair> findLink;
-    LinkedList<URLDepthPair> viewedLink;
-    int maxDepth;
-    int cWait;
+import java.util.*;
 
-    public URLPool(int maxDepth) {
-        this.maxDepth = maxDepth;
-        findLink = new LinkedList<URLDepthPair>();
-        viewedLink = new LinkedList<URLDepthPair>();
-        cWait = 0;
+public class URLPool
+{
+    private HashMap<String, URLPair> visited;
+    private LinkedList<URLPair> toVisit;
+
+    public URLPool()
+    {
+        visited = new HashMap<>();
+        toVisit = new LinkedList<>();
     }
 
-    public synchronized URLDepthPair getPair() {
-        while (findLink.size() == 0) {
-            cWait++;
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                System.out.println("Ignoring InterruptedException");
+    public synchronized URLPair getLink()
+    {
+        boolean isWaiting = false;
+        if (toVisit.size() == 0)
+        {
+            try
+            {
+                Crawler.threadsWaiting++;
+                isWaiting = true;
+                this.wait();
             }
-            cWait--;
-        }
-        URLDepthPair nextPair = findLink.removeFirst();
-        return nextPair;
-    }
-
-    public synchronized void addPair(URLDepthPair pair) {
-        if(URLDepthPair.check(viewedLink,pair)) {
-            viewedLink.add(pair);
-            if (pair.getDepth() < maxDepth) {
-                findLink.add(pair);
-                notify();
+            catch (Exception e)
+            {
+                return null;
             }
         }
+        if (isWaiting) Crawler.threadsWaiting--;
+        URLPair urlPair = toVisit.pop();
+        visited.put(urlPair.getURL(), urlPair);
+        return urlPair;
     }
 
-    public synchronized int getWait() {
-        return cWait;
+    public synchronized void addLink(URLPair urlPair)
+    {
+        if (!visited.containsKey(urlPair.getURL()))
+        {
+            toVisit.add(urlPair);
+            this.notify();
+        }
     }
-
-    public LinkedList<URLDepthPair> getResult() {
-        return viewedLink;
-    }
-
 }
